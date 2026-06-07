@@ -13,7 +13,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "record:promo": "node scripts/record-promo.mjs"
+    "record:promo": "node scripts/record-promo.mjs",
+    "record:readme": "node scripts/record-readme.mjs"
   },
   "dependencies": {
     "lil-gui": "^0.20.0",

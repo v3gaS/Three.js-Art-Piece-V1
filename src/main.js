@@ -7,6 +7,8 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import GUI from 'lil-gui';
 import { buildResidueWeb, formatNodeCount } from './residueWeb.js';
 
+const demoMode = new URLSearchParams(window.location.search).get('demo') === '1';
+
 const params = {
   iterationRate: 0.44,
   modulus: 19,
@@ -19,7 +21,7 @@ const params = {
   aperture: 0.0009,
   strandCount: 453,
   phase: 247,
-  useBokeh: false,
+  useBokeh: demoMode,
   animatePhase: false,
 };
 
@@ -201,6 +203,12 @@ try {
 }
 
 const gui = new GUI({ title: 'Three.js Art Piece V1' });
+if (demoMode) {
+  gui.domElement.style.display = 'none';
+  statusEl.style.display = 'none';
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.42;
+}
 gui.add(params, 'iterationRate', 0, 2, 0.01).name('Iteration Rate');
 gui.add(params, 'animatePhase').name('Animate Phase').onChange(() => scheduleRebuild());
 gui.add(params, 'modulus', 5, 31, 1).name('Modulus').onChange(scheduleRebuild);
@@ -260,7 +268,15 @@ function animate() {
     }
   }
 
-  webGroup.rotation.y += dt * 0.08;
+  webGroup.rotation.y += dt * (demoMode ? 0.11 : 0.08);
+
+  if (demoMode) {
+    const focus = 3.4 + Math.sin(clock.elapsedTime * 0.55) * 1.35;
+    bokehPass.uniforms.focus.value = focus;
+    params.aperture = 0.00075 + Math.sin(clock.elapsedTime * 0.35 + 1.2) * 0.00025;
+    bokehPass.uniforms.aperture.value = params.aperture;
+  }
+
   controls.update();
   renderFrame();
 }

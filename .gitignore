@@ -26,5 +26,10 @@ Thumbs.db
 .env
 .env.*
 
-# Cursor / local assets (not part of the app)
-assets/
+# Local promo captures (README demo is tracked)
+assets/*
+!assets/demo.gif
+assets/promo-video/
+assets/readme-video/
+assets/promo.gif
+assets/promo-frame.png
