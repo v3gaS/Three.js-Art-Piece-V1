@@ -12,13 +12,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "record:promo": "node scripts/record-promo.mjs"
   },
   "dependencies": {
     "lil-gui": "^0.20.0",
     "three": "^0.172.0"
   },
   "devDependencies": {
+    "playwright": "^1.49.1",
     "vite": "^6.0.0"
   }
 }

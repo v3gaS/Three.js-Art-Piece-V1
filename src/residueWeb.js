@@ -1,4 +1,5 @@
 const GRID = 250;
+const MAX_LINE_FLOATS = 1200000; // ~200k segments cap
 
 function gcd(a, b) {
   let x = Math.abs(a);
@@ -27,6 +28,36 @@ function hash01(n) {
 
 function nodeIndex(u, v) {
   return mod(u, GRID) * GRID + mod(v, GRID);
+}
+
+function pickTopDew(degrees, nodeCount, phase, dewCurrent) {
+  const target = Math.floor(280 + dewCurrent * 80);
+  const topScore = new Float32Array(target);
+  const topIndex = new Uint32Array(target);
+  let count = 0;
+
+  for (let i = 0; i < nodeCount; i++) {
+    if (degrees[i] < 3) continue;
+    const score = degrees[i] * (0.35 + hash01(i + phase * 3));
+
+    if (count < target) {
+      topScore[count] = score;
+      topIndex[count] = i;
+      count++;
+      continue;
+    }
+
+    let minIdx = 0;
+    for (let j = 1; j < target; j++) {
+      if (topScore[j] < topScore[minIdx]) minIdx = j;
+    }
+    if (score > topScore[minIdx]) {
+      topScore[minIdx] = score;
+      topIndex[minIdx] = i;
+    }
+  }
+
+  return { topIndex, count: Math.min(count, target) };
 }
 
 export function buildResidueWeb(params) {
@@ -85,16 +116,19 @@ export function buildResidueWeb(params) {
     }
   }
 
-  const linePositions = [];
+  const lineBuffer = new Float32Array(MAX_LINE_FLOATS);
+  let lineWrite = 0;
+
   const pushLine = (a, b) => {
-    linePositions.push(
-      positions[a * 3],
-      positions[a * 3 + 1],
-      positions[a * 3 + 2],
-      positions[b * 3],
-      positions[b * 3 + 1],
-      positions[b * 3 + 2],
-    );
+    if (lineWrite + 6 > lineBuffer.length) return;
+    const pa = a * 3;
+    const pb = b * 3;
+    lineBuffer[lineWrite++] = positions[pa];
+    lineBuffer[lineWrite++] = positions[pa + 1];
+    lineBuffer[lineWrite++] = positions[pa + 2];
+    lineBuffer[lineWrite++] = positions[pb];
+    lineBuffer[lineWrite++] = positions[pb + 1];
+    lineBuffer[lineWrite++] = positions[pb + 2];
     degrees[a]++;
     degrees[b]++;
   };
@@ -104,11 +138,10 @@ export function buildResidueWeb(params) {
     [0, 1],
     [2, 3],
     [3, 5],
-    [5, 8],
   ];
 
-  for (let u = 0; u < GRID; u++) {
-    for (let v = 0; v < GRID; v++) {
+  for (let u = 0; u < GRID; u += 2) {
+    for (let v = 0; v < GRID; v += 2) {
       const a = nodeIndex(u, v);
       for (const [du, dv] of localOffsets) {
         const b = nodeIndex(u + du, v + dv);
@@ -124,7 +157,7 @@ export function buildResidueWeb(params) {
     if (gcd(m, modulus) === 1) coprimeMultipliers.push(m);
   }
 
-  const steps = Math.floor(GRID * threadDensity * 0.62);
+  const steps = Math.floor(GRID * threadDensity * 0.38);
   for (let s = 0; s < strandCount; s++) {
     const mult = coprimeMultipliers[s % coprimeMultipliers.length];
     const band = Math.floor(s / coprimeMultipliers.length);
@@ -143,9 +176,11 @@ export function buildResidueWeb(params) {
     }
   }
 
+  const linePositions = lineBuffer.subarray(0, lineWrite);
+
   const veilPositions = [];
   if (veilWeight > 0.01) {
-    const stride = 8;
+    const stride = 10;
     for (let u = 0; u < GRID; u += stride) {
       for (let v = 0; v < GRID; v += stride) {
         const a = nodeIndex(u, v);
@@ -164,30 +199,23 @@ export function buildResidueWeb(params) {
     }
   }
 
-  const dewCandidates = [];
-  for (let i = 0; i < nodeCount; i++) {
-    if (degrees[i] < 3) continue;
-    const score = degrees[i] * (0.35 + hash01(i + phase * 3));
-    dewCandidates.push({ i, score });
-  }
-
-  dewCandidates.sort((a, b) => b.score - a.score);
-  const targetDew = Math.floor(280 + dewCurrent * 80);
-  const dewPositions = [];
-
-  for (let d = 0; d < Math.min(targetDew, dewCandidates.length); d++) {
-    const i = dewCandidates[d].i;
-    dewPositions.push(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+  const { topIndex, count: dewCount } = pickTopDew(degrees, nodeCount, phase, dewCurrent);
+  const dewPositions = new Float32Array(dewCount * 3);
+  for (let d = 0; d < dewCount; d++) {
+    const i = topIndex[d];
+    dewPositions[d * 3] = positions[i * 3];
+    dewPositions[d * 3 + 1] = positions[i * 3 + 1];
+    dewPositions[d * 3 + 2] = positions[i * 3 + 2];
   }
 
   return {
     nodeCount,
-    linePositions: new Float32Array(linePositions),
+    linePositions,
+    lineSegmentCount: Math.floor(lineWrite / 6),
     veilPositions: new Float32Array(veilPositions),
-    nodePositions: positions,
-    dewPositions: new Float32Array(dewPositions),
+    dewPositions,
     strandCount,
-    dewCount: dewPositions.length / 3,
+    dewCount,
   };
 }
 

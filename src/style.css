@@ -14,6 +14,11 @@ body {
 
 canvas {
   display: block;
+  position: fixed;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 0;
 }
 
 #status {
@@ -26,4 +31,12 @@ canvas {
   letter-spacing: 0.02em;
   pointer-events: none;
   user-select: none;
+}
+
+#status.error {
+  color: #ff6b6b;
+}
+
+.lil-gui.root {
+  z-index: 3;
 }
